@@ -27,14 +27,16 @@ var castleWhiteRookA = "";
 var castleWhiteRookH = "";
 var blackPromotionPositions = [56, 57, 58, 59, 60, 61, 62, 63];
 var whitePromotionPositions = [0, 1, 2, 3, 4, 5, 6, 7];
-var queenCounter = 0;
-var enpassant = [];
+var queenCounter = 0; // Used for pawn promotions
+var enpassant = []; // [(Position of the move behind the double move), name, isBlack, (Position of the double move)]
 
 var globalPositions = []; // An array containing all piece positions and their names
 for (let i = 0; i < 64; i++) { // Initially fills it with empty strings
     globalPositions.push("");
 }
-var testGlobalPositions = globalPositions.slice(); // A copy of that array for checking for checks and checkmates
+// testGlobalPositions is a copy of globalPositions
+// It's used primarily in updateCheckMoves() to calculate legal moves without messing with globalPositions
+var testGlobalPositions = globalPositions.slice();
 
 // Paints the board in a checkerboard pattern
 function drawCheckeredPattern(){
@@ -50,6 +52,7 @@ function drawCheckeredPattern(){
     }
 }
 
+// Changes the background color
 function darkmodeToggle(){
     if(darkmode){
         darkmode = false;
@@ -192,7 +195,7 @@ function checkEnPassantMove(tile, isBlack){
 
 // Checks if it's truly possible to castle and the move selected was a castling move
 // Applies the appropriate moves for the rook
-// Used in clickEvent()
+// Used inside of clickEvent()
 function castleCheckCheck(){
     if (canCastle && window[clickPieceName]["isKing"]){
         if (isBlackTurn){
@@ -233,7 +236,7 @@ function checkCheck(isBlackCheck, testMode){
     for (let i = 0; i < tempPositions.length; i++) {
         const tempPiece1 = tempPositions[i];
         if (tempPiece1 != "" && window[tempPiece1]["isBlack"] != isBlackCheck){
-            if(window[tempPiece1]["isKing"] && testMode == true){
+            if(testMode){
                 window[tempPiece1]["updateLegalMoves"](true);
             }
             else{
@@ -337,19 +340,13 @@ function checkMateCheck(){
 // Checks for clicks
 // *Reminder to clean up this code*
 function clickEvent(n){
-    if(gameEnd){}
+    if(gameEnd){console.log("Error! The game has already ended.")}
+
     // Stores the tile positions of the two clicks, in order
     else if (tilePicked1 == null && globalPositions[n] != ""){ 
         tilePicked1 = n;
         clickPieceName = globalPositions[tilePicked1]; // Finds the name of the piece clicked
         if(clickPieceName != undefined && window[clickPieceName]["isBlack"] == isBlackTurn){ // Checks whos turn it is
-            // if (checkCheck(isBlackTurn)){
-            //     isCheck = true;
-            // }
-            // else{
-            //     isCheck = false;
-            // }
-            updateCheckMoves();
             clickLegalMoves = window[clickPieceName]["legalMoves"];
             drawLegalMoves(); // Highlights the legal moves for that piece
         }
@@ -368,7 +365,7 @@ function clickEvent(n){
                     castleCheckCheck(); // Checks for castling moves and moves the rook accordingly
 
                     // Checks for pawn promotions
-                    if (window[clickPieceName]["isPawn"] != undefined){
+                    if (window[clickPieceName]["isPawn"]){
                         if(isBlackTurn && blackPromotionPositions.includes(tilePicked2)){
                             window[clickPieceName]["promotePawn"]();
                         }
@@ -410,20 +407,16 @@ function clickEvent(n){
 }
 
 class Piece{
-    constructor(name, isBlack, position, isKing){
-    this.name = name; // Name of the piece
+    constructor(name, isBlack, position){
+    this.name = name; // Unique name of the piece, has to be the same name of the Object
     this.isBlack = isBlack; // true for Black and false for White
     this.position = tileConvert(position); // Position on the board, takes in standard algebraic notation and converts it to the tile number
-    if(isKing){
-        this.isKing = true;
-    }
-    else{
-        this.isKing = false;
-    }
+    this.legalMoves = [];
+    this.firstMove = true;
     }
 
     // Main move function
-    move(movePosition, testMode){ // Takes in numbers from 0 to 59, equal to the tile number
+    move(movePosition, testMode){ // Takes in numbers from 0 to 63, equal to the tile number
         if(testMode == undefined){
             testMode = false;
         }
@@ -432,8 +425,8 @@ class Piece{
             drawPiece("", this.position); // Erases the previous tile's emoji
             globalPositions[this.position] = ""; // Erases the previous position from the array
 
+            // Checks for the enpassant move
             if(checkEnPassantMove(movePosition, this.isBlack)){
-                console.log("AAA")
                 globalPositions[enpassant[3]] = "";
                 drawPiece("", enpassant[3]);
             }
@@ -442,7 +435,7 @@ class Piece{
             }
 
             // Checks if it was a double pawn move and logs that to the enpassant global array
-            if(movePosition == this.firstMoveMove){
+            if(movePosition == this.doublePawnMove){
                 if(this.isBlack){
                     enpassant = [movePosition - 8, this.name, this.isBlack, movePosition];
                 }
@@ -461,13 +454,22 @@ class Piece{
         this.position = movePosition;
     }
 
-    // The two methods below are to be used inside of updateLegalMoves()
-    // They take in the Number of moves and XY coordinates
+    // The two methods below are used inside of updateLegalMoves()
+    // They take in the desired number of moves in each direction and current XY coordinates of the piece
     // Then they add the possible legal moves to the legalMoves array
     // checkStraight() is for horizontal and vertical moves, used for the rook, king and queen
-    checkStraight(n, x, y){
+    checkStraight(n, x, y, testMode){
         var tempX = x;
         var tempY = y;
+        if(testMode == undefined){
+            testMode = false;
+        }
+        if(testMode){
+            var tempPositions = testGlobalPositions;
+        }
+        else{
+            var tempPositions = globalPositions;
+        }
     
         for (let i = 0; i < n; i++) {
             tempX++;
@@ -475,7 +477,7 @@ class Piece{
                 break;
             }
             const tempMove = tempY * 8 + tempX;
-            const pieceAhead = testGlobalPositions[tempMove];
+            const pieceAhead = tempPositions[tempMove];
             if(pieceAhead == ""){
                 this.legalMoves.push(tempMove);
             }
@@ -499,7 +501,7 @@ class Piece{
                 break;
             }
             const tempMove = tempY * 8 + tempX;
-            const pieceAhead = testGlobalPositions[tempMove];
+            const pieceAhead = tempPositions[tempMove];
             if(pieceAhead == ""){
                 this.legalMoves.push(tempMove);
             }
@@ -523,7 +525,7 @@ class Piece{
                 break;
             }
             const tempMove = tempY * 8 + tempX;
-            const pieceAhead = testGlobalPositions[tempMove];
+            const pieceAhead = tempPositions[tempMove];
             if(pieceAhead == ""){
                 this.legalMoves.push(tempMove);
             }
@@ -547,7 +549,7 @@ class Piece{
                 break;
             }
             const tempMove = tempY * 8 + tempX;
-            const pieceAhead = testGlobalPositions[tempMove];
+            const pieceAhead = tempPositions[tempMove];
             if(pieceAhead == ""){
                 this.legalMoves.push(tempMove);
             }
@@ -564,10 +566,19 @@ class Piece{
         }
     }
     // checkDiagonal() is for diagonal moves, used for the bishop, king and queen
-    checkDiagonal(n, x, y){
+    checkDiagonal(n, x, y, testMode){
         var tempX = x;
         var tempY = y;
-    
+        if(testMode == undefined){
+            testMode = false;
+        }
+        if(testMode){
+            var tempPositions = testGlobalPositions;
+        }
+        else{
+            var tempPositions = globalPositions;
+        }
+        
         for (let i = 0; i < n; i++) {
             tempX++;
             tempY++;
@@ -575,7 +586,7 @@ class Piece{
                 break;
             }
             const tempMove = tempY * 8 + tempX;
-            const pieceAhead = testGlobalPositions[tempMove];
+            const pieceAhead = tempPositions[tempMove];
             if(pieceAhead == ""){
                 this.legalMoves.push(tempMove);
             }
@@ -600,7 +611,7 @@ class Piece{
                 break;
             }
             const tempMove = tempY * 8 + tempX;
-            const pieceAhead = testGlobalPositions[tempMove];
+            const pieceAhead = tempPositions[tempMove];
             if(pieceAhead == ""){
                 this.legalMoves.push(tempMove);
             }
@@ -625,7 +636,7 @@ class Piece{
                 break;
             }
             const tempMove = tempY * 8 + tempX;
-            const pieceAhead = testGlobalPositions[tempMove];
+            const pieceAhead = tempPositions[tempMove];
             if(pieceAhead == ""){
                 this.legalMoves.push(tempMove);
             }
@@ -650,7 +661,7 @@ class Piece{
                 break;
             }
             const tempMove = tempY * 8 + tempX;
-            const pieceAhead = testGlobalPositions[tempMove];
+            const pieceAhead = tempPositions[tempMove];
             if(pieceAhead == ""){
                 this.legalMoves.push(tempMove);
             }
@@ -669,12 +680,11 @@ class Piece{
 }    
 
 class Pawn extends Piece{
-    constructor(name, isBlack, position, isKing){
-        super(name, isBlack, position, isKing);
-        this.legalMoves = [];
-        this.firstMove = true;
-        this.firstMoveMove = null;
+    constructor(name, isBlack, position){
+        super(name, isBlack, position);
+        this.doublePawnMove = null;
         this.isPawn = true;
+        this.isKing = false;
 
         if (isBlack){
             this.pieceIcon = "♟";
@@ -688,57 +698,73 @@ class Pawn extends Piece{
     }
 
     // Updates the list of legal moves of that pawn
-    // *Reminder to clean up this code*
-    updateLegalMoves(){
+    updateLegalMoves(testMode){
         var pieceAhead = "";
         this.legalMoves = [];
-        let x = this.position % 8;
-        let y = (this.position - x) / 8;
-        if (this.isBlack){
-            y += 1;
+        const x = this.position % 8;
+        if(testMode == undefined){
+            testMode = false;
         }
-        else {
-            y -= 1;
+        if(testMode){
+            var tempPositions = testGlobalPositions;
         }
-        let currentMove = y * 8 + x;
+        else{
+            var tempPositions = globalPositions;
+        }
+        
+        if(this.isBlack){
+            var fowardMove = this.position + 8;
+        }
+        else{
+            var fowardMove = this.position - 8;
+        }
+        // Current move is set to the tile in front, according to the pawn's color
+        var currentMove = fowardMove;
 
-        if(testGlobalPositions[currentMove] == ""){ // Checks if the tile is empty
+        if(tempPositions[currentMove] === ""){ // Checks if the in front tile is empty
             this.legalMoves.push(currentMove); // Pushes that move to the list of legal moves
 
-            // This is the starting double move that pawns can do, or whatever it's called
-            // *Reminder to add the en-passante rule, or whatever it's called*
-            if(this.firstMove){
-                if(this.isBlack && testGlobalPositions[currentMove + 8] == ""){
-                    this.legalMoves.push(currentMove + 8);
-                    this.firstMoveMove = currentMove + 8;
+            // This is the starting double move that pawns can do
+            if(!this.firstMove){/* do nothing */}
+
+            else if(this.isBlack){
+                currentMove = fowardMove + 8;
+                if(tempPositions[currentMove] == ""){
+                    this.legalMoves.push(currentMove);
+                    this.doublePawnMove = currentMove;
                 }
-                else if(!this.isBlack && testGlobalPositions[currentMove - 8] == ""){
-                    this.legalMoves.push(currentMove - 8);
-                    this.firstMoveMove = currentMove - 8;
+            }
+            else{
+                currentMove = fowardMove - 8;
+                if(tempPositions[currentMove] == ""){
+                    this.legalMoves.push(currentMove);
+                    this.doublePawnMove = currentMove;
                 }
             }
         }
 
         // Checks if there are enemy pieces in the two diagonals in front
-        pieceAhead = testGlobalPositions[currentMove - 1];
+        currentMove = fowardMove - 1; // piece to the left
+        pieceAhead = tempPositions[currentMove];
         if (pieceAhead != "" && pieceAhead != undefined){
-            if(x > 0 && window[testGlobalPositions[currentMove - 1]]["isBlack"] != this.isBlack){
-                this.legalMoves.push(currentMove - 1);
+            if(x > 0 && window[pieceAhead]["isBlack"] != this.isBlack){
+                this.legalMoves.push(currentMove);
+            }
         }
-        }
-        pieceAhead = testGlobalPositions[currentMove + 1];
+        currentMove = fowardMove + 1; // piece to the right
+        pieceAhead = tempPositions[currentMove];
         if (pieceAhead != "" && pieceAhead != undefined){
-            if(x < 7 && window[testGlobalPositions[currentMove + 1]]["isBlack"] != this.isBlack){
-                this.legalMoves.push(currentMove + 1);
+            if(x < 7 && window[pieceAhead]["isBlack"] != this.isBlack){
+                this.legalMoves.push(currentMove);
             }  
         }
 
         // Special en passant checks
-        if(checkEnPassantMove(currentMove + 1, this.isBlack)){
-            this.legalMoves.push(currentMove + 1);
+        if(checkEnPassantMove(fowardMove + 1, this.isBlack)){
+            this.legalMoves.push(fowardMove + 1);
         }
-        else if(checkEnPassantMove(currentMove - 1, this.isBlack)){
-            this.legalMoves.push(currentMove - 1);
+        else if(checkEnPassantMove(fowardMove - 1, this.isBlack)){
+            this.legalMoves.push(fowardMove - 1);
         }
     }
 
@@ -757,10 +783,10 @@ class Pawn extends Piece{
 }
 
 class Knight extends Piece{
-    constructor(name, isBlack, position, isKing){
-        super(name, isBlack, position, isKing);
-        this.legalMoves = [];
-        this.firstMove = true;
+    constructor(name, isBlack, position){
+        super(name, isBlack, position);
+        this.isPawn = false;
+        this.isKing = false;
 
         if (isBlack){
             this.pieceIcon = "♞";
@@ -774,17 +800,24 @@ class Knight extends Piece{
     }
 
     // *Reminder to clean up this code*
-    updateLegalMoves(){
+    updateLegalMoves(testMode){
         var pieceAhead = "";
         var tempMoves = [];
         this.legalMoves = [];
         let x = this.position % 8;
         let y = (this.position - x) / 8;
-
-        // This is a TERRIBLE way to do this, i know
         let tempX = x;
         let tempY = y;
-
+        if(testMode == undefined){
+            testMode = false;
+        }
+        if(testMode){
+            var tempPositions = testGlobalPositions;
+        }
+        else{
+            var tempPositions = globalPositions;
+        }
+        
         tempX = x + 2;
         tempY = y + 1;
         if(tempX < 8 && tempY < 8){
@@ -835,7 +868,7 @@ class Knight extends Piece{
 
         for (let i = 0; i < tempMoves.length; i++) {
             const tempMove = tempMoves[i];
-            pieceAhead = testGlobalPositions[tempMove];
+            pieceAhead = tempPositions[tempMove];
             if (pieceAhead == ""){
                 this.legalMoves.push(tempMove);
             }
@@ -851,8 +884,8 @@ class Knight extends Piece{
 class Rook extends Piece{
     constructor(name, isBlack, position){
         super(name, isBlack, position);
-        this.legalMoves = [];
-        this.firstMove = true;
+        this.isPawn = false;
+        this.isKing = false;
 
         if (isBlack){
             this.pieceIcon = "♜";
@@ -874,10 +907,10 @@ class Rook extends Piece{
 }
 
 class King extends Piece{
-    constructor(name, isBlack, position, isKing){
-        super(name, isBlack, position, isKing);
-        this.legalMoves = [];
-        this.firstMove = true;
+    constructor(name, isBlack, position){
+        super(name, isBlack, position);
+        this.isPawn = false;
+        this.isKing = true;
 
         if (isBlack){
             this.pieceIcon = "♚";
@@ -890,21 +923,21 @@ class King extends Piece{
         globalPositions[this.position] = this.name;   
     }
     updateLegalMoves(testMode){
-        if(testMode == undefined){
-            testMode = false;
-        }
         this.legalMoves = [];
         let x = this.position % 8;
         let y = (this.position - x) / 8;
-        this.checkStraight(1, x, y);
-        this.checkDiagonal(1, x, y);
+        if(testMode == undefined){
+            testMode = false;
+        }
+        this.checkStraight(1, x, y, testMode);
+        this.checkDiagonal(1, x, y, testMode);
 
         // Checks for castling
         if(!testMode){
             this.checkCastling(this.isBlack);
         }
     }
-    checkCastling(isBlack){
+    checkCastling(isBlack){ // This is a mess
         canCastle = false;
         if(!isCheck && this.firstMove){
             
@@ -945,10 +978,10 @@ class King extends Piece{
 }
 
 class Bishop extends Piece{
-    constructor(name, isBlack, position, isKing){
-        super(name, isBlack, position, isKing);
-        this.legalMoves = [];
-        this.firstMove = true;
+    constructor(name, isBlack, position){
+        super(name, isBlack, position);
+        this.isPawn = false;
+        this.isKing = false;
 
         if (isBlack){
             this.pieceIcon = "♝";
@@ -960,19 +993,22 @@ class Bishop extends Piece{
         }
         globalPositions[this.position] = this.name;
     }
-    updateLegalMoves(){
+    updateLegalMoves(testMode){
         this.legalMoves = [];
         let x = this.position % 8;
         let y = (this.position - x) / 8;
-        this.checkDiagonal(7, x, y);
+        if(testMode == undefined){
+            testMode = false;
+        }
+        this.checkDiagonal(7, x, y, testMode);
     }
 }
 
 class Queen extends Piece{
-    constructor(name, isBlack, position, isKing){
-        super(name, isBlack, position, isKing);
-        this.legalMoves = [];
-        this.firstMove = true;
+    constructor(name, isBlack, position){
+        super(name, isBlack, position);
+        this.isPawn = false;
+        this.isKing = false;
 
         if (isBlack){
             this.pieceIcon = "♛";
@@ -984,16 +1020,19 @@ class Queen extends Piece{
         }
         globalPositions[this.position] = this.name;
     }
-    updateLegalMoves(){
+    updateLegalMoves(testMode){
         this.legalMoves = [];
         let x = this.position % 8;
         let y = (this.position - x) / 8;
-        this.checkStraight(7, x, y);
-        this.checkDiagonal(7, x, y);
+        if(testMode === undefined){
+            testMode = false;
+        }
+        this.checkStraight(7, x, y, testMode);
+        this.checkDiagonal(7, x, y, testMode);
     }
 }
 
-// Initial commands
+// Initial commands:
 addTileIds();
 addTileListeners();
 drawCheckeredPattern();
@@ -1009,7 +1048,7 @@ var whitePawnH = new Pawn("whitePawnH", false, "h7");
 var whiteRookA = new Rook("whiteRookA", false, "a8");
 var whiteKnightB = new Knight("whiteKnightB", false, "b8");
 var whiteBishopC = new Bishop("whiteBishopC", false, "c8");
-var whiteKing = new King("whiteKing", false, "e8", true);
+var whiteKing = new King("whiteKing", false, "e8");
 var whiteQueen = new Queen("whiteQueen", false, "d8");
 var whiteBishopF = new Bishop("whiteBishopF", false, "f8");
 var whiteKnightG = new Knight("whiteKnightG", false, "g8");
@@ -1036,3 +1075,5 @@ castleBlackRookA = "blackRookA";
 castleBlackRookH = "blackRookH";
 castleWhiteRookA = "whiteRookA";
 castleWhiteRookH = "whiteRookH";
+
+updateCheckMoves();
