@@ -75,6 +75,10 @@ function switchSides(){
     redrawAllPieces();
     if(tilePicked1 != null){
         drawLegalMoves();
+        updateTileCursors(false);
+    }
+    else{
+        updateTileCursors(true);
     }
 }
 
