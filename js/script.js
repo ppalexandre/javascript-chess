@@ -4,7 +4,8 @@
 // Add the Dead position rule
 // Refactor updateCheckMoves()
 // Fix performance
-// Clean the code and add comments
+// Clean checkDiagonal() and checkStraight()
+// Clean the rest of the code
 
 // Initial global declarations
 var tileColorOne = "#c19261";
@@ -27,18 +28,15 @@ var castleWhiteRookA = "";
 var castleWhiteRookH = "";
 var blackPromotionPositions = [56, 57, 58, 59, 60, 61, 62, 63];
 var whitePromotionPositions = [0, 1, 2, 3, 4, 5, 6, 7];
-var queenCounter = 0; // Used for pawn promotions
+var queenCounter = 0;
 var enpassant = []; // [(Position of the move behind the double move), name, isBlack, (Position of the double move)]
 
 var globalPositions = []; // An array containing all piece positions and their names
-for (let i = 0; i < 64; i++) { // Initially fills it with empty strings
+for (let i = 0; i < 64; i++) {
     globalPositions.push("");
 }
-// testGlobalPositions is a copy of globalPositions
-// It's used primarily in updateCheckMoves() to calculate legal moves without messing with globalPositions
 var testGlobalPositions = globalPositions.slice();
 
-// Paints the board in a checkerboard pattern
 function drawCheckeredPattern(){
     for (let i = 0; i < 64; i++){
         let x = i % 8;
@@ -52,7 +50,6 @@ function drawCheckeredPattern(){
     }
 }
 
-// Changes the background color
 function darkmodeToggle(){
     if(darkmode){
         darkmode = false;
@@ -64,7 +61,6 @@ function darkmodeToggle(){
     }
 }
 
-// Switches the board around
 function switchSides(){
     undrawLegalMoves();
     if(boardSwitch){
@@ -77,13 +73,11 @@ function switchSides(){
     }
     addTileListeners(true);
     redrawAllPieces();
-    console.log(tilePicked1)
     if(tilePicked1 != null){
         drawLegalMoves();
     }
 }
 
-// Adds event listeners for clickEvent() in each tile element
 function addTileListeners(replace){
     if (replace == undefined){
         replace = false;
@@ -102,7 +96,6 @@ function addTileListeners(replace){
     }
 }
 
-// Adds/changes the IDs of each tile element in the html file
 function addTileIds(reverse){
     if (reverse == undefined){
         reverse = false;
@@ -120,7 +113,6 @@ function addTileIds(reverse){
     }
 }
 
-// Redraws all pieces on the board
 function redrawAllPieces(){
     for (let i = 0; i < 64; i++) {
         drawPiece("", i);
@@ -132,7 +124,6 @@ function redrawAllPieces(){
     }
 }
 
-// Highlights the legal moves in red
 function drawLegalMoves(){
     for (let i = 0; i < clickLegalMoves.length; i++) {
         const tileSelected = clickLegalMoves[i];
@@ -140,8 +131,6 @@ function drawLegalMoves(){
     }
 }
 
-// Unhightlights the legal moves
-// drawCheckeredPattern() could also be used for this purpose
 function undrawLegalMoves(){
     for (let i = 0; i < clickLegalMoves.length; i++) {
         const tileSelected = clickLegalMoves[i];
@@ -178,12 +167,46 @@ function tileConvert(tile){
     }
 }
 
-// Small shortcut utility to draw pieces
+function tileCursorSwitch(n, pointer){
+    var element = document.getElementById(n);
+    if(pointer){
+        element.style.cursor = "pointer"; 
+    }
+    else{
+        element.style.cursor = "default";
+    }
+}
+
+function updateTileCursors(secondClick){
+    if(secondClick){
+        for (let i = 0; i < clickLegalMoves.length; i++) {
+            tileCursorSwitch(clickLegalMoves[i], false);
+        }
+        for (let i = 0; i < 64; i++) {
+            const piece = globalPositions[i]
+            if(piece != "" && (window[piece]["isBlack"] === isBlackTurn)){
+                const moves = window[piece]["legalMoves"];
+                if(moves.length > 0){
+                    tileCursorSwitch(window[piece]["position"], true);
+                }
+            }
+        }
+    }
+    else{
+        for (let i = 0; i < 64; i++) {
+            tileCursorSwitch(i, false);
+        }
+        for (let i = 0; i < clickLegalMoves.length; i++) {
+            tileCursorSwitch(clickLegalMoves[i], true);
+        }
+    }
+}
+
 function drawPiece(pieceIcon, piecePosition){
     document.getElementById(piecePosition).innerText = pieceIcon;
 }
 
-// Functionality for enpassant moves
+// Small functionality for enpassant moves
 function checkEnPassantMove(tile, isBlack){
     if(tile === enpassant[0] && isBlack != enpassant[2]){
         return true;
@@ -193,9 +216,8 @@ function checkEnPassantMove(tile, isBlack){
     }
 }
 
-// Checks if it's truly possible to castle and the move selected was a castling move
+// Checks if it's good to castle
 // Applies the appropriate moves for the rook
-// Used inside of clickEvent()
 function castleCheckCheck(){
     if (canCastle && window[clickPieceName]["isKing"]){
         if (isBlackTurn){
@@ -283,8 +305,8 @@ function updateCheckMoves(){
     for (let i = 0; i < testGlobalPositions.length; i++) {
         const tempPiece = testGlobalPositions[i];
         if (tempPiece == ""){}
-        else if (window[tempPiece]["isBlack"] == isBlackTurn){ // Checks for the turn
-            window[tempPiece]["updateLegalMoves"](); // Updates the possible moves for that piece
+        else if (window[tempPiece]["isBlack"] == isBlackTurn){
+            window[tempPiece]["updateLegalMoves"]();
             const tempLegalMoves = window[tempPiece]["legalMoves"];
             const currentPosition = window[tempPiece]["position"];
             const badMoveList = [];
@@ -337,18 +359,17 @@ function checkMateCheck(){
 }
 
 // Main function
-// Checks for clicks
 // *Reminder to clean up this code*
 function clickEvent(n){
     if(gameEnd){console.log("Error! The game has already ended.")}
-
-    // Stores the tile positions of the two clicks, in order
-    else if (tilePicked1 == null && globalPositions[n] != ""){ 
+    
+    else if (tilePicked1 == null && globalPositions[n] != "" && window[globalPositions[n]]["legalMoves"].length > 0){ 
         tilePicked1 = n;
-        clickPieceName = globalPositions[tilePicked1]; // Finds the name of the piece clicked
-        if(clickPieceName != undefined && window[clickPieceName]["isBlack"] == isBlackTurn){ // Checks whos turn it is
+        clickPieceName = globalPositions[tilePicked1];
+        if(clickPieceName != undefined && window[clickPieceName]["isBlack"] == isBlackTurn){
             clickLegalMoves = window[clickPieceName]["legalMoves"];
-            drawLegalMoves(); // Highlights the legal moves for that piece
+            drawLegalMoves();
+            updateTileCursors(false);
         }
     }
     else if (tilePicked1 != null) {
@@ -386,10 +407,9 @@ function clickEvent(n){
                     }
                     
                     updateCheckMoves();
-                    // Checks for checks
+
                     if (checkCheck(isBlackTurn)){
                         isCheck = true;
-                        //Checks for checkmates and draws
                         checkMateCheck();
                     }
                     else{
@@ -398,7 +418,8 @@ function clickEvent(n){
                     break;
                 }
             }
-            undrawLegalMoves(); // Unhighlights the legal moves
+            undrawLegalMoves();
+            updateTileCursors(true);
         }
         // Resets the tiles picked
         tilePicked1 = null;
@@ -409,18 +430,17 @@ function clickEvent(n){
 class Piece{
     constructor(name, isBlack, position){
     this.name = name; // Unique name of the piece, has to be the same name of the Object
-    this.isBlack = isBlack; // true for Black and false for White
+    this.isBlack = isBlack;
     this.position = tileConvert(position); // Position on the board, takes in standard algebraic notation and converts it to the tile number
     this.legalMoves = [];
     this.firstMove = true;
     }
 
-    // Main move function
     move(movePosition, testMode){ // Takes in numbers from 0 to 63, equal to the tile number
         if(testMode == undefined){
             testMode = false;
         }
-        if(!testMode){ // Checks if it's not a test move
+        if(!testMode){
             console.log(`${this.name} at position ${tileConvert(this.position)} moved to position ${tileConvert(movePosition)}`);
             drawPiece("", this.position); // Erases the previous tile's emoji
             globalPositions[this.position] = ""; // Erases the previous position from the array
@@ -454,10 +474,7 @@ class Piece{
         this.position = movePosition;
     }
 
-    // The two methods below are used inside of updateLegalMoves()
-    // They take in the desired number of moves in each direction and current XY coordinates of the piece
-    // Then they add the possible legal moves to the legalMoves array
-    // checkStraight() is for horizontal and vertical moves, used for the rook, king and queen
+    // Two methods take in the desired number of moves in each direction and current XY coordinates of the piece
     checkStraight(n, x, y, testMode){
         var tempX = x;
         var tempY = y;
@@ -565,7 +582,7 @@ class Piece{
             }
         }
     }
-    // checkDiagonal() is for diagonal moves, used for the bishop, king and queen
+
     checkDiagonal(n, x, y, testMode){
         var tempX = x;
         var tempY = y;
@@ -697,7 +714,6 @@ class Pawn extends Piece{
         globalPositions[this.position] = this.name;
     }
 
-    // Updates the list of legal moves of that pawn
     updateLegalMoves(testMode){
         var pieceAhead = "";
         this.legalMoves = [];
@@ -718,14 +734,14 @@ class Pawn extends Piece{
         else{
             var fowardMove = this.position - 8;
         }
-        // Current move is set to the tile in front, according to the pawn's color
+
         var currentMove = fowardMove;
 
         if(tempPositions[currentMove] === ""){ // Checks if the in front tile is empty
             this.legalMoves.push(currentMove); // Pushes that move to the list of legal moves
 
             // This is the starting double move that pawns can do
-            if(!this.firstMove){/* do nothing */}
+            if(!this.firstMove){}
 
             else if(this.isBlack){
                 currentMove = fowardMove + 8;
@@ -759,7 +775,6 @@ class Pawn extends Piece{
             }  
         }
 
-        // Special en passant checks
         if(checkEnPassantMove(fowardMove + 1, this.isBlack)){
             this.legalMoves.push(fowardMove + 1);
         }
@@ -932,7 +947,6 @@ class King extends Piece{
         this.checkStraight(1, x, y, testMode);
         this.checkDiagonal(1, x, y, testMode);
 
-        // Checks for castling
         if(!testMode){
             this.checkCastling(this.isBlack);
         }
@@ -1077,3 +1091,9 @@ castleWhiteRookA = "whiteRookA";
 castleWhiteRookH = "whiteRookH";
 
 updateCheckMoves();
+updateTileCursors(true);
+
+// Checks if the browser is using lightmode, then appropriately flashbangs them
+if (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches) {
+    darkmodeToggle()
+}

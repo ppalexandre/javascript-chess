@@ -21,20 +21,6 @@ body{
     padding: 0px;
 }
 
-.notation{
-    width: 60px;
-    height: 60px;
-    font-size: 30px;
-    text-align: center;
-    align-content: center;
-    background-color: #999999;
-}
-
-.empty{
-    width: 60px;
-    height: 60px;
-}
-
 th{
     padding: 1px;
 }
@@ -59,13 +45,6 @@ table{
     user-select: none;
 }
 
-.bishoptest{
-    background-image: url("../imgs/white_bishop.png");
-    background-size: cover;
-    height: 60px;
-    width: 60px;
-}
-
 .darkbutton{
     position: absolute;
     margin-left: calc(50vw + 270px);
@@ -79,6 +58,7 @@ table{
     border-radius: 10px;
     background-image: url("../imgs/darkmode.png");
     background-size: cover;
+    cursor: pointer;
 }
 
 .switchbutton{
@@ -94,4 +74,5 @@ table{
     background-image: url("../imgs/switch.png");
     border-radius: 10px;
     background-size: cover;
+    cursor: pointer;
 }
