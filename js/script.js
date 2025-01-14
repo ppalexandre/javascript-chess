@@ -77,7 +77,6 @@ function switchSides(){
         updateTileCursors(true);
     }
     else{
-        console.log("g")
         updateTileCursors(false);
     }
 }
@@ -1074,11 +1073,6 @@ var blackQueen = new Queen("blackQueen", true, "d1");
 var blackBishopF = new Bishop("blackBishopF", true, "f1");
 var blackKnightG = new Knight("blackKnightG", true, "g1");
 var blackRookH = new Rook("blackRookH", true, "h1");
-
-castleBlackRookA = "blackRookA";
-castleBlackRookH = "blackRookH";
-castleWhiteRookA = "whiteRookA";
-castleWhiteRookH = "whiteRookH";
 
 updateCheckMoves();
 updateTileCursors();
