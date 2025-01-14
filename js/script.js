@@ -3,9 +3,8 @@
 // Add the Threefold repetition rule
 // Add the Dead position rule
 // Refactor updateCheckMoves()
-// Fix performance
-// Clean checkDiagonal() and checkStraight()
-// Clean the rest of the code
+// Refactor checkDiagonal() and checkStraight()
+// Stop using window to get object values
 
 // Initial global declarations
 var tileColorOne = "#c19261";
@@ -22,12 +21,12 @@ var legalMoveCounter = 0;
 var noLegalMoves = false;
 var gameEnd = false;
 var canCastle = false;
-var castleBlackRookA = "";
-var castleBlackRookH = "";
-var castleWhiteRookA = "";
-var castleWhiteRookH = "";
-var blackPromotionPositions = [56, 57, 58, 59, 60, 61, 62, 63];
-var whitePromotionPositions = [0, 1, 2, 3, 4, 5, 6, 7];
+const castleBlackRookA = "blackRookA";
+const castleBlackRookH = "blackRookH";
+const castleWhiteRookA = "whiteRookA";
+const castleWhiteRookH = "whiteRookH";
+const blackPromotionPositions = [56, 57, 58, 59, 60, 61, 62, 63];
+const whitePromotionPositions = [0, 1, 2, 3, 4, 5, 6, 7];
 var queenCounter = 0;
 var enpassant = []; // [(Position of the move behind the double move), name, isBlack, (Position of the double move)]
 
@@ -65,7 +64,7 @@ function switchSides(){
     undrawLegalMoves();
     if(boardSwitch){
         boardSwitch = false;
-        addTileIds();
+        addTileIds(false);
     }
     else{
         boardSwitch = true;
@@ -75,10 +74,11 @@ function switchSides(){
     redrawAllPieces();
     if(tilePicked1 != null){
         drawLegalMoves();
-        updateTileCursors(false);
+        updateTileCursors(true);
     }
     else{
-        updateTileCursors(true);
+        console.log("g")
+        updateTileCursors(false);
     }
 }
 
@@ -182,26 +182,26 @@ function tileCursorSwitch(n, pointer){
 }
 
 function updateTileCursors(secondClick){
+    if(secondClick === undefined){secondClick = false;}
+
+    for (let i = 0; i < 64; i++) {
+        tileCursorSwitch(i, false);
+    }
+
     if(secondClick){
         for (let i = 0; i < clickLegalMoves.length; i++) {
-            tileCursorSwitch(clickLegalMoves[i], false);
+            tileCursorSwitch(clickLegalMoves[i], true);
         }
+    }
+    else{
         for (let i = 0; i < 64; i++) {
-            const piece = globalPositions[i]
+            const piece = globalPositions[i];
             if(piece != "" && (window[piece]["isBlack"] === isBlackTurn)){
                 const moves = window[piece]["legalMoves"];
                 if(moves.length > 0){
                     tileCursorSwitch(window[piece]["position"], true);
                 }
             }
-        }
-    }
-    else{
-        for (let i = 0; i < 64; i++) {
-            tileCursorSwitch(i, false);
-        }
-        for (let i = 0; i < clickLegalMoves.length; i++) {
-            tileCursorSwitch(clickLegalMoves[i], true);
         }
     }
 }
@@ -373,7 +373,7 @@ function clickEvent(n){
         if(clickPieceName != undefined && window[clickPieceName]["isBlack"] == isBlackTurn){
             clickLegalMoves = window[clickPieceName]["legalMoves"];
             drawLegalMoves();
-            updateTileCursors(false);
+            updateTileCursors(true);
         }
     }
     else if (tilePicked1 != null) {
@@ -423,7 +423,7 @@ function clickEvent(n){
                 }
             }
             undrawLegalMoves();
-            updateTileCursors(true);
+            updateTileCursors(false);
         }
         // Resets the tiles picked
         tilePicked1 = null;
@@ -438,6 +438,8 @@ class Piece{
     this.position = tileConvert(position); // Position on the board, takes in standard algebraic notation and converts it to the tile number
     this.legalMoves = [];
     this.firstMove = true;
+    this.isPawn = false;
+    this.isKing = false;
     }
 
     move(movePosition, testMode){ // Takes in numbers from 0 to 63, equal to the tile number
@@ -446,7 +448,7 @@ class Piece{
         }
         if(!testMode){
             console.log(`${this.name} at position ${tileConvert(this.position)} moved to position ${tileConvert(movePosition)}`);
-            drawPiece("", this.position); // Erases the previous tile's emoji
+            drawPiece("", this.position); // Erases the previous tile's unicode symbol
             globalPositions[this.position] = ""; // Erases the previous position from the array
 
             // Checks for the enpassant move
@@ -705,16 +707,14 @@ class Pawn extends Piece{
         super(name, isBlack, position);
         this.doublePawnMove = null;
         this.isPawn = true;
-        this.isKing = false;
 
         if (isBlack){
             this.pieceIcon = "♟";
-            drawPiece(this.pieceIcon, this.position);
         }
         else{
             this.pieceIcon = "♙";
-            drawPiece(this.pieceIcon, this.position);
         }
+        drawPiece(this.pieceIcon, this.position);
         globalPositions[this.position] = this.name;
     }
 
@@ -804,17 +804,14 @@ class Pawn extends Piece{
 class Knight extends Piece{
     constructor(name, isBlack, position){
         super(name, isBlack, position);
-        this.isPawn = false;
-        this.isKing = false;
 
         if (isBlack){
             this.pieceIcon = "♞";
-            drawPiece(this.pieceIcon, this.position);
         }
         else{
             this.pieceIcon = "♘";
-            drawPiece(this.pieceIcon, this.position);
         }
+        drawPiece(this.pieceIcon, this.position);
         globalPositions[this.position] = this.name;
     }
 
@@ -903,17 +900,14 @@ class Knight extends Piece{
 class Rook extends Piece{
     constructor(name, isBlack, position){
         super(name, isBlack, position);
-        this.isPawn = false;
-        this.isKing = false;
 
         if (isBlack){
             this.pieceIcon = "♜";
-            drawPiece(this.pieceIcon, this.position);
         }
         else{
             this.pieceIcon = "♖";
-            drawPiece(this.pieceIcon, this.position);
         }
+        drawPiece(this.pieceIcon, this.position);
         globalPositions[this.position] = this.name;
     }
 
@@ -928,17 +922,15 @@ class Rook extends Piece{
 class King extends Piece{
     constructor(name, isBlack, position){
         super(name, isBlack, position);
-        this.isPawn = false;
         this.isKing = true;
 
         if (isBlack){
             this.pieceIcon = "♚";
-            drawPiece(this.pieceIcon, this.position);
         }
         else{
             this.pieceIcon = "♔";
-            drawPiece(this.pieceIcon, this.position);
         }
+        drawPiece(this.pieceIcon, this.position);
         globalPositions[this.position] = this.name;   
     }
     updateLegalMoves(testMode){
@@ -998,17 +990,14 @@ class King extends Piece{
 class Bishop extends Piece{
     constructor(name, isBlack, position){
         super(name, isBlack, position);
-        this.isPawn = false;
-        this.isKing = false;
 
         if (isBlack){
             this.pieceIcon = "♝";
-            drawPiece(this.pieceIcon, this.position);
         }
         else{
             this.pieceIcon = "♗";
-            drawPiece(this.pieceIcon, this.position);
         }
+        drawPiece(this.pieceIcon, this.position);
         globalPositions[this.position] = this.name;
     }
     updateLegalMoves(testMode){
@@ -1025,17 +1014,14 @@ class Bishop extends Piece{
 class Queen extends Piece{
     constructor(name, isBlack, position){
         super(name, isBlack, position);
-        this.isPawn = false;
-        this.isKing = false;
 
         if (isBlack){
             this.pieceIcon = "♛";
-            drawPiece(this.pieceIcon, this.position);
         }
         else{
             this.pieceIcon = "♕";
-            drawPiece(this.pieceIcon, this.position);
         }
+        drawPiece(this.pieceIcon, this.position);
         globalPositions[this.position] = this.name;
     }
     updateLegalMoves(testMode){
@@ -1095,7 +1081,7 @@ castleWhiteRookA = "whiteRookA";
 castleWhiteRookH = "whiteRookH";
 
 updateCheckMoves();
-updateTileCursors(true);
+updateTileCursors();
 
 // Checks if the browser is using lightmode, then appropriately flashbangs them
 if (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches) {
