@@ -4,37 +4,37 @@
 // Add the Dead position rule
 // Refactor updateCheckMoves()
 // Refactor checkDiagonal() and checkStraight()
-// Stop using window to get object values
+// Refactor the Pawn's and Knight's updateLegalMoves()
+// Refactor Castling and stuff
 
 // Initial global declarations
-var tileColorOne = "#c19261";
-var tileColorTwo = "#258e2c";
-var darkmode = true;
-var boardSwitch = false;
-var tilePicked1 = null;
-var tilePicked2 = null;
-var clickLegalMoves = [];
-var clickPieceName = "";
-var isBlackTurn = false;
-var isCheck = false;
-var legalMoveCounter = 0;
-var noLegalMoves = false;
-var gameEnd = false;
-var canCastle = false;
+let tileColorOne = "#c19261";
+let tileColorTwo = "#258e2c";
+let darkmode = true;
+let boardSwitch = false;
+let tilePicked1 = null;
+let tilePicked2 = null;
+let clickLegalMoves = [];
+let clickPieceName = "";
+let isBlackTurn = false;
+let isCheck = false;
+let noLegalMoves = false;
+let gameEnd = false;
+let canCastle = false;
 const castleBlackRookA = "blackRookA";
 const castleBlackRookH = "blackRookH";
 const castleWhiteRookA = "whiteRookA";
 const castleWhiteRookH = "whiteRookH";
 const blackPromotionPositions = [56, 57, 58, 59, 60, 61, 62, 63];
 const whitePromotionPositions = [0, 1, 2, 3, 4, 5, 6, 7];
-var queenCounter = 0;
-var enpassant = []; // [(Position of the move behind the double move), name, isBlack, (Position of the double move)]
+let queenCounter = 0;
+let enpassant = []; // [(Position of the move behind the double move), name, isBlack, (Position of the double move)]
 
-var globalPositions = []; // An array containing all piece positions and their names
+let globalPositions = []; // An array containing all piece positions and their names
 for (let i = 0; i < 64; i++) {
     globalPositions.push("");
 }
-var testGlobalPositions = globalPositions.slice();
+let testGlobalPositions = globalPositions.slice();
 
 function drawCheckeredPattern(){
     for (let i = 0; i < 64; i++){
@@ -53,10 +53,12 @@ function darkmodeToggle(){
     if(darkmode){
         darkmode = false;
         document.getElementsByTagName("body")[0].style.backgroundColor = "#ffffff";
+        document.getElementById("winscreen").style.color = "#000000";
     }
     else{
         darkmode = true;
         document.getElementsByTagName("body")[0].style.backgroundColor = "#28282e";
+        document.getElementById("winscreen").style.color = "#ffffff";
     }
 }
 
@@ -271,11 +273,9 @@ function checkCheck(isBlackCheck, testMode){
             
             for (let j = 0; j < tempLegalMoves.length; j++) {
                 const tempPiece2 = tempPositions[tempLegalMoves[j]];
-                if(tempPiece2 != ""){
-                    if(window[tempPiece2]["isKing"]){
-                        check = true;
-                        break;
-                    }
+                if(tempPiece2 != "" && window[tempPiece2]["isKing"]){
+                    check = true;
+                    break;
                 }
             }  
         }
@@ -302,8 +302,10 @@ function tilesCheck(isBlackCheck, tileList){
 }
 
 // Culls the illegal moves for each piece in that turn
+// Does some other things
 function updateCheckMoves(){
-    legalMoveCounter = 0;
+    let legalMoves = false;
+
     testGlobalPositions = globalPositions.slice();
     for (let i = 0; i < testGlobalPositions.length; i++) {
         const tempPiece = testGlobalPositions[i];
@@ -312,7 +314,7 @@ function updateCheckMoves(){
             window[tempPiece]["updateLegalMoves"]();
             const tempLegalMoves = window[tempPiece]["legalMoves"];
             const currentPosition = window[tempPiece]["position"];
-            const badMoveList = [];
+            let badMoveList = [];
             
             // Simulates every possible move for each piece of the color that is being checked
             // Checks if that move is legal 
@@ -331,12 +333,13 @@ function updateCheckMoves(){
                 const element = badMoveList[j];
                 window[tempPiece]["legalMoves"].splice(element, 1);
             }
-            for (let j = 0; j < window[tempPiece]["legalMoves"].length; j++) {
-                legalMoveCounter++;
+
+            if(!legalMoves && window[tempPiece]["legalMoves"].length > 0){
+                legalMoves = true;
             }
         }
     }
-    if(legalMoveCounter === 0){
+    if(!legalMoves){
         noLegalMoves = true;
     }
 }
@@ -347,15 +350,15 @@ function checkMateCheck(){
         if(isCheck){
             //Checkmate!
             if(isBlackTurn){
-                document.getElementsByClassName("winscreen")[0].innerText = "White wins!";
+                document.getElementById("winscreen").innerText = "White wins!";
             }
             else{
-                document.getElementsByClassName("winscreen")[0].innerText = "Black wins!";
+                document.getElementById("winscreen").innerText = "Black wins!";
             }
         }
         else{
             //Stalemate!
-            document.getElementsByClassName("winscreen")[0].innerText = "Stalemate!";
+            document.getElementById("winscreen").innerText = "Stalemate!";
         }
         gameEnd = true;
     }
@@ -366,7 +369,10 @@ function checkMateCheck(){
 function clickEvent(n){
     if(gameEnd){console.log("Error! The game has already ended.")}
     
-    else if (tilePicked1 == null && globalPositions[n] != "" && window[globalPositions[n]]["legalMoves"].length > 0){ 
+    else if (tilePicked1 == null && globalPositions[n] != "" && 
+        window[globalPositions[n]]["legalMoves"].length > 0 &&  
+        window[globalPositions[n]]["isBlack"] === isBlackTurn){
+
         tilePicked1 = n;
         clickPieceName = globalPositions[tilePicked1];
         if(clickPieceName != undefined && window[clickPieceName]["isBlack"] == isBlackTurn){
@@ -492,7 +498,7 @@ class Piece{
         else{
             var tempPositions = globalPositions;
         }
-    
+        
         for (let i = 0; i < n; i++) {
             tempX++;
             if (tempX > 7){
@@ -816,13 +822,12 @@ class Knight extends Piece{
 
     // *Reminder to clean up this code*
     updateLegalMoves(testMode){
-        var pieceAhead = "";
-        var tempMoves = [];
+        let pieceAhead = "";
+        let tempMoves = [];
         this.legalMoves = [];
-        let x = this.position % 8;
-        let y = (this.position - x) / 8;
-        let tempX = x;
-        let tempY = y;
+        const x = this.position % 8;
+        const y = (this.position - x) / 8;
+        const knightMoveSet = [[1, 2], [1, -2], [2, 1], [2, -1], [-1, 2], [-1, -2], [-2, 1], [-2, -1]]
         if(testMode == undefined){
             testMode = false;
         }
@@ -832,65 +837,24 @@ class Knight extends Piece{
         else{
             var tempPositions = globalPositions;
         }
+        for (let i = 0; i < knightMoveSet.length; i++) {
+            const move = knightMoveSet[i];
+            const tempY = y + move[0];
+            const tempX = x + move[1];
+            if(tempY < 8 && tempX < 8 && tempX > -1 && tempY > -1){
+                tempMoves.push(tempY * 8 + tempX)
+            }
+        }
         
-        tempX = x + 2;
-        tempY = y + 1;
-        if(tempX < 8 && tempY < 8){
-            tempMoves.push(tempY * 8 + tempX);
-        }
-
-        tempX = x + 1;
-        tempY = y + 2;
-        if(tempX < 8 && tempY < 8){
-            tempMoves.push(tempY * 8 + tempX);
-        }
-
-        tempX = x - 2;
-        tempY = y + 1;
-        if(tempX > -1 && tempY < 8){
-            tempMoves.push(tempY * 8 + tempX);
-        }
-
-        tempX = x - 1;
-        tempY = y + 2;
-        if(tempX > -1 && tempY < 8){
-            tempMoves.push(tempY * 8 + tempX);
-        }
-
-        tempX = x + 2;
-        tempY = y - 1;
-        if(tempX < 8 && tempY > -1){
-            tempMoves.push(tempY * 8 + tempX);
-        }
-
-        tempX = x + 1;
-        tempY = y - 2;
-        if(tempX < 8 && tempY > -1){
-            tempMoves.push(tempY * 8 + tempX);
-        }
-
-        tempX = x - 1;
-        tempY = y - 2;
-        if(tempX > -1 && tempY > -1){
-            tempMoves.push(tempY * 8 + tempX);
-        }
-
-        tempX = x - 2;
-        tempY = y - 1;
-        if(tempX > -1 && tempY > -1){
-            tempMoves.push(tempY * 8 + tempX);
-        }
-
         for (let i = 0; i < tempMoves.length; i++) {
             const tempMove = tempMoves[i];
             pieceAhead = tempPositions[tempMove];
             if (pieceAhead == ""){
                 this.legalMoves.push(tempMove);
             }
-            else if (pieceAhead != undefined){
-                if(window[pieceAhead]["isBlack"] != this.isBlack){
-                    this.legalMoves.push(tempMove);
-                }
+            else if (pieceAhead != undefined && 
+                window[pieceAhead]["isBlack"] != this.isBlack){
+                this.legalMoves.push(tempMove);
             }
         }
     }

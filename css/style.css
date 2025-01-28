@@ -35,7 +35,7 @@ table{
     background-color: #171a18;
 }
 
-.winscreen{
+#winscreen{
     width: 572px;
     height: 60px;
     font-size: 50px;
@@ -43,9 +43,10 @@ table{
     align-content: center;
     margin: auto;
     user-select: none;
+    color: #ffffff;
 }
 
-.darkbutton{
+#darkbutton{
     position: absolute;
     margin-left: calc(50vw + 270px);
     margin-top: 5vh;
@@ -61,7 +62,7 @@ table{
     cursor: pointer;
 }
 
-.switchbutton{
+#switchbutton{
     position: absolute;
     margin-left: calc(50vw + 270px);
     margin-top: calc(5vh + 70px);
