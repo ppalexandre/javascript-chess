@@ -415,8 +415,6 @@ function clickEvent(n){
                         isBlackTurn = true;
                     }
                     
-                    updateCheckMoves();
-
                     if (checkCheck(isBlackTurn)){
                         isCheck = true;
                         checkMateCheck();
@@ -424,6 +422,9 @@ function clickEvent(n){
                     else{
                         isCheck = false;
                     }
+
+                    updateCheckMoves();
+
                     break;
                 }
             }
@@ -913,7 +914,7 @@ class King extends Piece{
     checkCastling(isBlack){ // This is a mess
         canCastle = false;
         if(!isCheck && this.firstMove){
-            
+
             if(isBlack){
                 if(castleBlackRookA == ""){}
                 else if(window[castleBlackRookA]["firstMove"] && globalPositions[1] == "" && globalPositions[2] == "" && globalPositions[3] == ""){
