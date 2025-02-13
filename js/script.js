@@ -417,13 +417,13 @@ function clickEvent(n){
                     
                     if (checkCheck(isBlackTurn)){
                         isCheck = true;
-                        checkMateCheck();
                     }
                     else{
                         isCheck = false;
                     }
 
                     updateCheckMoves();
+                    checkMateCheck();
 
                     break;
                 }
